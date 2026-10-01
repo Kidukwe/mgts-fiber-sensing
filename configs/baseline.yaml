@@ -1,0 +1,32 @@
+project:
+  name: mgts-fiber-sensing
+  random_seed: 42
+
+data:
+  raw_dir: MGTS_data
+  sample_dir: data/sample
+  file_pattern: "*.csv"
+  required_columns:
+    - dts_id
+    - channel_id
+    - timestamp
+    - points
+
+# HUMAN DECISION: do not fill these fields without confirming data semantics.
+semantics:
+  naive_timestamp_timezone: null
+  missing_value_sentinels: []
+  coordinate_unit: null
+  signal_unit: null
+
+# HUMAN DECISION: target, split and metric must be approved before modeling.
+experiment:
+  target: null
+  split_strategy: null
+  metric: null
+  baseline_model: null
+
+outputs:
+  audit_report: reports/data_audit.md
+  figures_dir: reports/figures
+  models_dir: models
