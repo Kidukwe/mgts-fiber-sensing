@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "Analysis of distributed fiber sensing data"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["numpy>=1.26,<3"]
 
 [project.optional-dependencies]
 dev = [
@@ -20,7 +20,6 @@ notebooks = [
   "matplotlib>=3.8,<4",
   "nbclient>=0.10,<1",
   "nbformat>=5.10,<6",
-  "numpy>=1.26,<3",
   "pandas>=2.2,<3",
 ]
 
