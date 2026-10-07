@@ -1,22 +1,23 @@
-# Decisions
+# Решения проекта
 
-## Accepted
+## Принятые решения
 
-- Raw CSV files are immutable and excluded from Git.
-- Experiment seed starts at `42` and is stored in configuration.
-- Preprocessing must be fitted after splitting to prevent leakage.
-- Scripts are thin entry points; reusable code belongs in the package.
-- `main` is the presentation-ready branch; `develop` is the integration branch.
-- Feature work is merged into `develop` through reviewed pull requests.
-- CI runs lint and tests for pull requests; deployment automation is deferred.
+- Исходные CSV неизменяемы и не добавляются в Git.
+- Начальное значение случайного зерна — `42`; оно хранится в конфигурации.
+- Параметры предобработки подбираются после разделения данных, чтобы исключить утечку.
+- Скрипты служат точками входа; повторно используемый код размещается в пакете.
+- `main` содержит версию для презентации, `develop` служит веткой интеграции.
+- Изменения признаков попадают в `develop` через PR с ревью.
+- CI запускает проверки стиля и тесты для PR; автоматическое развёртывание отложено.
 
-## Pending human decisions
+## Решения, ожидающие подтверждения команды
 
-- ML target and operational meaning of a prediction.
-- Primary metric and acceptable error trade-offs.
-- Validation split strategy.
-- Meaning of `-300` in `5.csv`.
-- Timezone of naive timestamps in `5.csv`.
-- Coordinate and signal units.
-- Mapping between files and DTS/DAS modalities.
-- Open-source license.
+- Постановка регрессии JOTB-5, смысл прогноза, MAE и временное разделение,
+  предложенные в [`ml_task_jotb_5.md`](ml_task_jotb_5.md).
+- Допустимые ошибки для практического применения. Baseline JOTB-5 пока только
+  сравнивает MAE с прогнозом «последнее значение».
+- Значение `-300` в `5.csv`.
+- Часовой пояс времени без смещения в `5.csv`.
+- Единицы координат и сигнала.
+- Соответствие файлов типам сенсоров DTS/DAS.
+- Лицензия открытого исходного кода.
