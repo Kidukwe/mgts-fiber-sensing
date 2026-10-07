@@ -12,14 +12,14 @@ data:
     - timestamp
     - points
 
-# HUMAN DECISION: do not fill these fields without confirming data semantics.
+# Семантика данных требует подтверждения; не заполнять поля предположениями.
 semantics:
   naive_timestamp_timezone: null
   missing_value_sentinels: []
   coordinate_unit: null
   signal_unit: null
 
-# JOTB-5 proposal; review docs/ml_task_jotb_5.md before implementing JOTB-6.
+# Предложение JOTB-5: перед этапом JOTB-6 согласовать docs/ml_task_jotb_5.md.
 experiment:
   task_type: regression
   source_file: 2.csv
