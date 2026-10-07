@@ -12,9 +12,10 @@
 
 ## Pending human decisions
 
-- ML target and operational meaning of a prediction.
-- Primary metric and acceptable error trade-offs.
-- Validation split strategy.
+- Team review of the JOTB-5 regression target, its operational meaning, MAE,
+  and chronological split proposed in [`ml_task_jotb_5.md`](ml_task_jotb_5.md).
+- Acceptable error trade-offs for any operational deployment; the JOTB-5
+  baseline only compares MAE with persistence.
 - Meaning of `-300` in `5.csv`.
 - Timezone of naive timestamps in `5.csv`.
 - Coordinate and signal units.

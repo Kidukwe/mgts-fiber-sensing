@@ -19,12 +19,27 @@ semantics:
   coordinate_unit: null
   signal_unit: null
 
-# HUMAN DECISION: target, split and metric must be approved before modeling.
+# JOTB-5 proposal; review docs/ml_task_jotb_5.md before implementing JOTB-6.
 experiment:
-  target: null
-  split_strategy: null
-  metric: null
-  baseline_model: null
+  task_type: regression
+  source_file: 2.csv
+  target: next_regular_profile_zone_median
+  sample_unit: sensor_channel_zone_decision_time
+  common_prefix_points: 2120
+  zone_width_points: 40
+  input_profiles: 5
+  next_interval_seconds_min: 120
+  next_interval_seconds_max: 121
+  split_strategy: chronological_with_embargo
+  split_timezone: UTC
+  train_start: "2026-04-10T00:00:00+00:00"
+  train_end_exclusive: "2026-04-10T14:00:00+00:00"
+  validation_start: "2026-04-10T14:12:00+00:00"
+  validation_end_exclusive: "2026-04-10T19:00:00+00:00"
+  test_start: "2026-04-10T19:12:00+00:00"
+  test_end_exclusive: "2026-04-11T00:00:00+00:00"
+  metric: mae
+  baseline_model: persistence
 
 outputs:
   audit_report: reports/data_audit.md
