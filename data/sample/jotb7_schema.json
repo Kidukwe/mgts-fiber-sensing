@@ -1,0 +1,605 @@
+{
+  "aggregation_order": "spatial zone statistics first, temporal zonal-median features second",
+  "block_scope": "local to one invocation; namespace by input hashes and configuration",
+  "columns": {
+    "block_id": {
+      "description": "Increasing local ID of a contiguous compatible history block.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "channel_id": {
+      "description": "Original channel identifier as string.",
+      "type": "string"
+    },
+    "delta": {
+      "description": "Current minus previous zonal median; null if either is unavailable.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "delta_seconds": {
+      "description": "Actual elapsed seconds between last two profiles; null on warmup.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "dts_id": {
+      "description": "Source/device identifier, physical meaning not assumed.",
+      "type": "string"
+    },
+    "history_count": {
+      "description": "Available profiles in this block, at most H.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "history_end": {
+      "description": "Current measurement, not proof of online availability.",
+      "type": "string"
+    },
+    "history_ready": {
+      "description": "H profiles available; this does not guarantee zone quality.",
+      "type": "boolean"
+    },
+    "history_size": {
+      "description": "Configured H, including current profile.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "history_sources": {
+      "description": "Actual history current-first, without padded sources.",
+      "items": {
+        "additionalProperties": false,
+        "properties": {
+          "line_number": {
+            "type": "integer"
+          },
+          "row_number": {
+            "type": "integer"
+          },
+          "source_file": {
+            "type": "string"
+          },
+          "timestamp": {
+            "type": "string"
+          },
+          "timestamp_raw": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "source_file",
+          "row_number",
+          "line_number",
+          "timestamp",
+          "timestamp_raw"
+        ],
+        "type": "object"
+      },
+      "maxItems": 3,
+      "minItems": 1,
+      "type": "array"
+    },
+    "history_start": {
+      "description": "Oldest available measurement in current history.",
+      "type": "string"
+    },
+    "index_start": {
+      "description": "Absolute first original point index, inclusive.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "index_stop": {
+      "description": "Absolute original point index, exclusive.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "lag_medians": {
+      "description": "Current-first, fixed H; null for missing/padded medians.",
+      "items": {
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "maxItems": 3,
+      "minItems": 3,
+      "type": "array"
+    },
+    "line_number": {
+      "description": "1-based physical start line in source CSV.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "maximum": {
+      "description": "Maximum of current zone's usable original values.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "maximum_minus_median": {
+      "description": "Upper spatial excursion; retains narrow peaks.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "median": {
+      "description": "Median of current zone's usable original values.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "median_minus_minimum": {
+      "description": "Lower spatial excursion; retains narrow dips.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "minimum": {
+      "description": "Minimum of current zone's usable original values.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "nominal_count": {
+      "description": "Configured zone width, including a partial final zone.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "point_count": {
+      "description": "Actual coordinate count in this zone.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "quality_flags": {
+      "description": "Unique quality codes, never event labels.",
+      "items": {
+        "type": "string"
+      },
+      "type": "array",
+      "uniqueItems": true
+    },
+    "rate": {
+      "description": "delta / delta_seconds in unknown y units per second.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rolling_mean": {
+      "description": "Equal-weight mean of usable medians in the complete H window.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "rolling_std": {
+      "description": "Population std of usable medians in the complete H window.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "row_number": {
+      "description": "1-based data-record number, excluding header.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "schema_version": {
+      "description": "Versioned proposal contract, not an approved team contract.",
+      "type": "string"
+    },
+    "selected_grid_sha256": {
+      "description": "SHA256 of selected float64 x bytes, not a physical line ID.",
+      "type": "string"
+    },
+    "sentinel_count": {
+      "description": "Masked point count: sentinel_mask or original y == -300.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "sentinel_fraction": {
+      "description": "sentinel_count / point_count; not probability of failure.",
+      "type": "number"
+    },
+    "source_file": {
+      "description": "Source CSV path supplied to ingestion.",
+      "type": "string"
+    },
+    "std": {
+      "description": "Population spatial std (ddof=0), not a temporal std.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "temporal_valid_count": {
+      "description": "Usable zonal medians in available history.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "timestamp": {
+      "description": "Current measurement ISO datetime; naive time remains naive.",
+      "type": "string"
+    },
+    "timestamp_raw": {
+      "description": "Unchanged original timestamp text.",
+      "type": "string"
+    },
+    "timezone_known": {
+      "description": "Whether current measurement has a known offset.",
+      "type": "boolean"
+    },
+    "timezone_raw": {
+      "description": "Original timezone offset suffix, if known.",
+      "type": [
+        "string",
+        "null"
+      ]
+    },
+    "utc_offset_seconds": {
+      "description": "Known UTC offset seconds; null is not UTC.",
+      "type": [
+        "number",
+        "null"
+      ]
+    },
+    "valid_count": {
+      "description": "Available original y samples after suspect-value masking.",
+      "minimum": 0,
+      "type": "integer"
+    },
+    "valid_fraction": {
+      "description": "valid_count / nominal_count; geometry and mask both affect it.",
+      "type": "number"
+    },
+    "x_end": {
+      "description": "Coordinate of last actual point in zone, not a room boundary.",
+      "type": "number"
+    },
+    "x_start": {
+      "description": "Coordinate of first actual point in zone; physical units unknown.",
+      "type": "number"
+    },
+    "zone_id": {
+      "description": "0-based zone ordinal inside configured selected slice.",
+      "minimum": 0,
+      "type": "integer"
+    }
+  },
+  "contract_status": "proposal",
+  "coordinate_unit": null,
+  "format": "jsonl",
+  "missing_policy": "null; raw suspect values masked before spatial aggregation",
+  "row_schema": {
+    "additionalProperties": false,
+    "properties": {
+      "block_id": {
+        "description": "Increasing local ID of a contiguous compatible history block.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "channel_id": {
+        "description": "Original channel identifier as string.",
+        "type": "string"
+      },
+      "delta": {
+        "description": "Current minus previous zonal median; null if either is unavailable.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "delta_seconds": {
+        "description": "Actual elapsed seconds between last two profiles; null on warmup.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "dts_id": {
+        "description": "Source/device identifier, physical meaning not assumed.",
+        "type": "string"
+      },
+      "history_count": {
+        "description": "Available profiles in this block, at most H.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "history_end": {
+        "description": "Current measurement, not proof of online availability.",
+        "type": "string"
+      },
+      "history_ready": {
+        "description": "H profiles available; this does not guarantee zone quality.",
+        "type": "boolean"
+      },
+      "history_size": {
+        "description": "Configured H, including current profile.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "history_sources": {
+        "description": "Actual history current-first, without padded sources.",
+        "items": {
+          "additionalProperties": false,
+          "properties": {
+            "line_number": {
+              "type": "integer"
+            },
+            "row_number": {
+              "type": "integer"
+            },
+            "source_file": {
+              "type": "string"
+            },
+            "timestamp": {
+              "type": "string"
+            },
+            "timestamp_raw": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "source_file",
+            "row_number",
+            "line_number",
+            "timestamp",
+            "timestamp_raw"
+          ],
+          "type": "object"
+        },
+        "maxItems": 3,
+        "minItems": 1,
+        "type": "array"
+      },
+      "history_start": {
+        "description": "Oldest available measurement in current history.",
+        "type": "string"
+      },
+      "index_start": {
+        "description": "Absolute first original point index, inclusive.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "index_stop": {
+        "description": "Absolute original point index, exclusive.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "lag_medians": {
+        "description": "Current-first, fixed H; null for missing/padded medians.",
+        "items": {
+          "type": [
+            "number",
+            "null"
+          ]
+        },
+        "maxItems": 3,
+        "minItems": 3,
+        "type": "array"
+      },
+      "line_number": {
+        "description": "1-based physical start line in source CSV.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "maximum": {
+        "description": "Maximum of current zone's usable original values.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "maximum_minus_median": {
+        "description": "Upper spatial excursion; retains narrow peaks.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "median": {
+        "description": "Median of current zone's usable original values.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "median_minus_minimum": {
+        "description": "Lower spatial excursion; retains narrow dips.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "minimum": {
+        "description": "Minimum of current zone's usable original values.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "nominal_count": {
+        "description": "Configured zone width, including a partial final zone.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "point_count": {
+        "description": "Actual coordinate count in this zone.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "quality_flags": {
+        "description": "Unique quality codes, never event labels.",
+        "items": {
+          "type": "string"
+        },
+        "type": "array",
+        "uniqueItems": true
+      },
+      "rate": {
+        "description": "delta / delta_seconds in unknown y units per second.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "rolling_mean": {
+        "description": "Equal-weight mean of usable medians in the complete H window.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "rolling_std": {
+        "description": "Population std of usable medians in the complete H window.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "row_number": {
+        "description": "1-based data-record number, excluding header.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "schema_version": {
+        "description": "Versioned proposal contract, not an approved team contract.",
+        "type": "string"
+      },
+      "selected_grid_sha256": {
+        "description": "SHA256 of selected float64 x bytes, not a physical line ID.",
+        "type": "string"
+      },
+      "sentinel_count": {
+        "description": "Masked point count: sentinel_mask or original y == -300.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "sentinel_fraction": {
+        "description": "sentinel_count / point_count; not probability of failure.",
+        "type": "number"
+      },
+      "source_file": {
+        "description": "Source CSV path supplied to ingestion.",
+        "type": "string"
+      },
+      "std": {
+        "description": "Population spatial std (ddof=0), not a temporal std.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "temporal_valid_count": {
+        "description": "Usable zonal medians in available history.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "timestamp": {
+        "description": "Current measurement ISO datetime; naive time remains naive.",
+        "type": "string"
+      },
+      "timestamp_raw": {
+        "description": "Unchanged original timestamp text.",
+        "type": "string"
+      },
+      "timezone_known": {
+        "description": "Whether current measurement has a known offset.",
+        "type": "boolean"
+      },
+      "timezone_raw": {
+        "description": "Original timezone offset suffix, if known.",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "utc_offset_seconds": {
+        "description": "Known UTC offset seconds; null is not UTC.",
+        "type": [
+          "number",
+          "null"
+        ]
+      },
+      "valid_count": {
+        "description": "Available original y samples after suspect-value masking.",
+        "minimum": 0,
+        "type": "integer"
+      },
+      "valid_fraction": {
+        "description": "valid_count / nominal_count; geometry and mask both affect it.",
+        "type": "number"
+      },
+      "x_end": {
+        "description": "Coordinate of last actual point in zone, not a room boundary.",
+        "type": "number"
+      },
+      "x_start": {
+        "description": "Coordinate of first actual point in zone; physical units unknown.",
+        "type": "number"
+      },
+      "zone_id": {
+        "description": "0-based zone ordinal inside configured selected slice.",
+        "minimum": 0,
+        "type": "integer"
+      }
+    },
+    "required": [
+      "schema_version",
+      "source_file",
+      "dts_id",
+      "channel_id",
+      "timestamp",
+      "timestamp_raw",
+      "selected_grid_sha256",
+      "history_start",
+      "history_end",
+      "timezone_raw",
+      "utc_offset_seconds",
+      "timezone_known",
+      "row_number",
+      "line_number",
+      "block_id",
+      "zone_id",
+      "index_start",
+      "index_stop",
+      "nominal_count",
+      "point_count",
+      "valid_count",
+      "sentinel_count",
+      "history_size",
+      "history_count",
+      "temporal_valid_count",
+      "x_start",
+      "x_end",
+      "valid_fraction",
+      "sentinel_fraction",
+      "median",
+      "minimum",
+      "maximum",
+      "maximum_minus_median",
+      "median_minus_minimum",
+      "std",
+      "delta_seconds",
+      "delta",
+      "rate",
+      "rolling_mean",
+      "rolling_std",
+      "history_ready",
+      "lag_medians",
+      "history_sources",
+      "quality_flags"
+    ],
+    "type": "object"
+  },
+  "schema_version": "jotb7-zones-v1-proposal",
+  "signal_unit": null,
+  "warmup_policy": "spatial rows retained; complete-window temporal statistics null"
+}
