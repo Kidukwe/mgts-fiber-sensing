@@ -19,6 +19,11 @@ semantics:
   coordinate_unit: null
   signal_unit: null
 
+# Техническая маска: -300 исключается независимо от неясного физического смысла.
+quality:
+  excluded_signal_values: [-300.0]
+  exclude_nonfinite: true
+
 # Предложение JOTB-5: перед этапом JOTB-6 согласовать docs/ml_task_jotb_5.md.
 experiment:
   task_type: regression
@@ -40,6 +45,22 @@ experiment:
   test_end_exclusive: "2026-04-11T00:00:00+00:00"
   metric: mae
   baseline_model: persistence
+
+# Гипотезы для проверки после первого baseline, не подтверждённое улучшение.
+spatial_feature_experiment:
+  candidates:
+    - max_minus_median
+    - median_minus_min
+    - share_increase
+    - share_decrease
+    - longest_adjacent_increase
+    - longest_adjacent_decrease
+  delta_reference: previous_profile_same_coordinate
+  delta_threshold: train_only_zone_abs_delta_p95
+  robust_extrema_checks:
+    - p95_minus_median
+    - median_minus_p05
+  keep_target_split_and_estimator_fixed: true
 
 outputs:
   audit_report: reports/data_audit.md
