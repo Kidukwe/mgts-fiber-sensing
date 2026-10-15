@@ -218,7 +218,9 @@ def test_every_bad_pair_gets_a_problem():
 
 def test_excessively_nested_json_is_explicit_error():
     result = parse(points="[" * 2000 + "0" + "]" * 2000)
-    assert not result.loaded and "INVALID_JSON" in codes(result)
+    # Python 3.12 can decode deeper JSON than 3.10; either path must reject it.
+    assert not result.loaded
+    assert codes(result) & {"INVALID_JSON", "INVALID_POINT_PAIR"}
 
 
 def test_csv_column_count_and_blank_record_are_explicit(tmp_path):
