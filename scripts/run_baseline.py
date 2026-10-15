@@ -1,9 +1,6 @@
-"""CLI entry point for baseline training and evaluation."""
+"""Run integrated causal baseline and temperature-event candidate detector."""
 
-
-def main() -> None:
-    raise SystemExit("Baseline training awaits an approved target, split and metric")
-
+from mgts_sensing.event_cli import main
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

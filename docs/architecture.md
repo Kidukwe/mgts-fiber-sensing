@@ -22,3 +22,14 @@ the pipeline.
 - `features.py`: shared feature-table contract and combination of feature families.
 - `modeling.py` and `evaluation.py`: estimators, validation and metrics.
 - `visualization.py`: plots shared by reports, notebooks and the demo.
+
+
+## Event baseline integration
+
+`event_cli.py` composes `iter_profiles` → `iter_feature_results` → `EventDetector`.
+`modeling.py` provides a causal rolling median/MAD baseline, `events.py` tracks
+confirmed per-zone candidates with hysteresis, and `evaluation.py` records paired
+prequential errors against persistence. Both `scripts/run_baseline.py` and
+`demo/demo.py` call this pipeline. This proposal does not establish signal units,
+labels, or the previously proposed supervised regression experiment. See
+[temperature_events.md](temperature_events.md) for the output contract.

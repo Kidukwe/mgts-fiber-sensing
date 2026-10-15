@@ -1,9 +1,9 @@
-"""Minimal demo entry point; implemented after the first validated baseline."""
+"""Run the same reproducible event pipeline used by the baseline CLI.
 
+See docs/temperature_events.md for the synthetic sample command.
+"""
 
-def main() -> None:
-    raise SystemExit("Demo is not implemented yet")
-
+from mgts_sensing.event_cli import main
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

@@ -45,4 +45,16 @@ python scripts/validate_data.py --data-dir MGTS_data --report-dir reports/ingest
 API, пример использования, флаги качества и ограничения описаны в
 [`docs/ingestion.md`](docs/ingestion.md). Результат проверки шести CSV — в
 [`reports/ingestion_validation.md`](reports/ingestion_validation.md).
-DSP, признаки и baseline будут добавляться после утверждения соответствующих решений.
+Зональные признаки JOTB-7 и исследовательский детектор кандидатов доступны в CLI.
+Детектор считает причинный baseline, подтверждает нагрев/охлаждение и локальные
+пики/провалы, экспортирует scores, кандидатов, проблемы и метрики baseline.
+
+```bash
+python scripts/run_baseline.py --input data/sample/temperature_events.csv \
+  --output-dir artifacts/temperature-events-demo --index-stop 6 --zone-width 3
+```
+
+Синтетический пример даёт четыре кандидата. Единицы сигнала неизвестны,
+реальных labels нет: это не оценка обнаружения аварий. Алгоритм, API, параметры,
+выходной контракт и ограничения: [docs/temperature_events.md](docs/temperature_events.md).
+DSP остаётся заготовкой.
