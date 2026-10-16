@@ -1,0 +1,51 @@
+{
+  "dataset": "synthetic_only_not_real_accident_accuracy",
+  "seed": 1337,
+  "noise_c": 0.1,
+  "amplitude_c": 1.0,
+  "evaluation_role": "development_scenarios_not_independent_test",
+  "injected_events": 4,
+  "detected_candidates": 4,
+  "matched_events": 4,
+  "precision": 1.0,
+  "recall": 1.0,
+  "detection_delay_seconds": [
+    60.0,
+    60.0,
+    60.0,
+    60.0
+  ],
+  "forecast_test_metrics": {
+    "mae_c": 0.08064656857229267,
+    "rmse_c": 0.2439540320589207,
+    "profiles": 60,
+    "zone_observations": 240
+  },
+  "matching": "one-to-one same kind, overlapping time and injected zone",
+  "truth": [
+    {
+      "kind": "heating",
+      "start_profile": 245,
+      "end_profile": 251,
+      "zone": 0
+    },
+    {
+      "kind": "cooling",
+      "start_profile": 255,
+      "end_profile": 261,
+      "zone": 1
+    },
+    {
+      "kind": "local_peak",
+      "start_profile": 265,
+      "end_profile": 271,
+      "zone": 2
+    },
+    {
+      "kind": "local_dip",
+      "start_profile": 275,
+      "end_profile": 281,
+      "zone": 3
+    }
+  ]
+}

@@ -1,4 +1,18 @@
-# Architecture
+# Итоговая архитектура
+
+Основной маршрут: `scripts/run_solution.py` → `solution.main`.
+`io/validation` читают неизменяемые CSV, `dsp.spatial_features` описывает
+пространственные участки, `solution.make_samples` формирует причинные окна
+и хронологические выборки. `forecast.RidgeForecaster` обучает и сохраняет
+регрессию; `solution.build_alerts` объединяет прогнозные и фоновые отклонения
+в кандидаты. `visualization` строит фигуры и локальный HTML.
+
+Переносимый артефакт проверяется через `scripts/verify_solution.py` и
+`forecast.predict_artifact`; комплект собирает `scripts/package_solution.py`.
+Текущий контракт — [solution.md](solution.md).
+
+## Предыдущая архитектура и совместимость
+
 
 The project follows a small batch pipeline:
 
@@ -22,3 +36,14 @@ the pipeline.
 - `features.py`: shared feature-table contract and combination of feature families.
 - `modeling.py` and `evaluation.py`: estimators, validation and metrics.
 - `visualization.py`: plots shared by reports, notebooks and the demo.
+
+
+## Event baseline integration
+
+`event_cli.py` composes `iter_profiles` → `iter_feature_results` → `EventDetector`.
+`modeling.py` provides a causal rolling median/MAD baseline, `events.py` tracks
+confirmed per-zone candidates with hysteresis, and `evaluation.py` records paired
+prequential errors against persistence. Both `scripts/run_baseline.py` and
+`demo/demo.py` call this pipeline. This proposal does not establish signal units,
+labels, or the previously proposed supervised regression experiment. See
+[temperature_events.md](temperature_events.md) for the output contract.

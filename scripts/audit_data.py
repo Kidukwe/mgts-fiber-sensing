@@ -1,9 +1,9 @@
-"""CLI entry point for the reproducible data audit."""
+"""Audit the building-temperature dataset with its confirmed fixed UTC+3 offset."""
+import sys
 
+from validate_data import main
 
-def main() -> None:
-    raise SystemExit("Data audit is not implemented yet; see reports/data_audit.md")
-
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    if '--naive-utc-offset-hours' not in sys.argv:
+        sys.argv.extend(['--naive-utc-offset-hours', '3'])
+    raise SystemExit(main())

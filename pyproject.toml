@@ -4,19 +4,24 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mgts-fiber-sensing"
-version = "0.1.0"
+version = "0.3.0"
 description = "Analysis of distributed fiber sensing data"
 readme = "README.md"
 requires-python = ">=3.10"
-dependencies = []
+dependencies = ["numpy>=1.26,<3"]
 
 [project.optional-dependencies]
+solution = ["matplotlib>=3.8,<4"]
 dev = [
   "pytest>=8,<9",
   "ruff>=0.6,<1",
 ]
 notebooks = [
-  "jupyterlab>=4,<5",
+  "ipykernel>=6,<8",
+  "matplotlib>=3.8,<4",
+  "nbclient>=0.10,<1",
+  "nbformat>=5.10,<6",
+  "pandas>=2.2,<3",
 ]
 
 [tool.setuptools.packages.find]

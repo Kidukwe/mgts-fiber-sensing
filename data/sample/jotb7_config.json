@@ -1,0 +1,14 @@
+{
+  "schema_version": "jotb7-zones-v1-proposal",
+  "contract_status": "proposal",
+  "synthetic": true,
+  "input": "data/sample/jotb7_profiles.csv",
+  "index_start": 0,
+  "index_stop": 6,
+  "zone_width": 3,
+  "history_size": 3,
+  "max_gap_seconds": 40.0,
+  "min_valid_fraction": 0.5,
+  "coordinate_unit": null,
+  "signal_unit": null
+}
