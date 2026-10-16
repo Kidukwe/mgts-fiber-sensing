@@ -10,14 +10,17 @@ data:
 
 # Reference specification; the CLI records its actual resolved config in model.json.
 semantics:
-  naive_timestamp_timezone: "UTC+03:00"
+  naive_timestamp_timezone: null
+  naive_timezone_by_source: {"5.csv": "UTC+03:00"}
+  semantic_source: "Ответ специалиста МГТС от 15.10.2026, переданный участником"
   missing_value_sentinels: [-300]
   sentinel_meaning: end_of_fiber
   signal_unit: degC
   accuracy_c: 0.1
-  sample_spacing_m: 0.0025
-  coordinate_unit: raw_csv_coordinate
-  distance_policy: index_times_sample_spacing
+  sample_spacing_m: null
+  coordinate_unit: null
+  spatial_resolution_response_literal: "пространственное разрешение 0,25 см"
+  distance_policy: original_x_and_indices_without_physical_conversion
 
 experiment:
   target: next_profile_zone_median_and_hot_cold_excursion_changes
@@ -34,8 +37,9 @@ experiment:
   minimum_cadence_factor: 0.5
   maximum_cadence_factor: 1.5
   forecast_residual_quantile: 0.995
-  uncertainty_difference_floor_c: 0.2
-  uncertainty_excursion_change_floor_c: 0.4
+  research_difference_floor_c: 0.2
+  research_excursion_change_floor_c: 0.4
+  floors_derived_from_sensor_accuracy: false
   point_change_threshold: train_per_zone_absolute_delta_quantile_0.95
   feature_ablation: [temporal, spatial_dsp]
   feature_count: 24

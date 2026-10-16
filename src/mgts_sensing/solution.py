@@ -20,13 +20,20 @@ from .forecast import RidgeForecaster
 from .io import iter_profiles
 
 SEMANTICS = {
-    "signal_unit": "degC", "accuracy_c": .1, "sample_spacing_m": .0025,
-    "naive_utc_offset_hours": 3, "fiber_end_value": -300,
-    "distance_policy": "index * 0.0025 m; raw CSV x exported separately",
-    "spatial_resolution_m": .0025,
-    "distance_is_index_based_assumption": True,
+    "signal_unit": "degC", "accuracy_c": .1, "sample_spacing_m": None,
+    "naive_utc_offset_hours": {"5.csv": 3}, "fiber_end_value": -300,
+    "coordinate_unit": None,
+    "distance_policy": "raw x and point indices only; physical coordinate units unconfirmed",
+    "spatial_resolution_m": None,
+    "spatial_resolution_statement": "пространственное разрешение 0,25 см",
+    "semantic_source": "MGTS specialist 2026-10-15 relayed by user; no direct transcript",
+    "accuracy_interpretation": "claimed accuracy; not noise sigma or alarm threshold",
+    "distance_is_index_based_assumption": False,
     "profile_availability": "recorded timestamp; acquisition latency unknown",
 }
+
+# Research defaults chosen for this experiment, not derived from sensor accuracy.
+RESEARCH_DEFAULT_FLOORS_C = (.2, .4, .4)
 
 
 
@@ -47,7 +54,9 @@ def extract(path, width, *, issue_path=None, change_thresholds=None, cadence_ove
     records, issues = [], Counter()
     previous = {}
     details = []
-    for result in iter_profiles([path], naive_utc_offset_hours=3):
+    path = Path(path)
+    offset = 3 if path.name == "5.csv" else None
+    for result in iter_profiles([path], naive_utc_offset_hours=offset):
         issues.update(item.code for item in result.issues)
         for issue in result.issues:
             details.append({"source_file": str(issue.source_file), "row_number": issue.row_number,
@@ -58,8 +67,21 @@ def extract(path, width, *, issue_path=None, change_thresholds=None, cadence_ove
             previous.clear()
             continue
         p = result.profile
+        if not p.timezone_known:
+            code = "UNKNOWN_TIMEZONE_UNSUPPORTED"
+            issues[code] += 1
+            details.append({"source_file": str(path), "row_number": result.row_number,
+                            "line_number": result.line_number, "severity": "error",
+                            "code": code,
+                            "description": "No confirmed timezone for this source; excluded "
+                                           "before epoch/time-of-day features"})
+            records.append({"invalid": True, "row": result.row_number})
+            previous.clear()
+            continue
         zones = {}
         current_points = {}
+        profile_differences = np.diff(p.x)
+        profile_x_step = float(np.median(profile_differences)) if len(profile_differences) else None
         if "DUPLICATE_KEY" not in p.quality_flags and np.all(np.diff(p.x) > 0):
             for start in range(0, len(p.y), width):
                 stop = min(start + width, len(p.y))
@@ -76,6 +98,19 @@ def extract(path, width, *, issue_path=None, change_thresholds=None, cadence_ove
                                     "description": f"Zone {start // width}: noncontiguous valid samples"})
                     continue
                 a, b = start + int(valid[0]), start + int(valid[-1]) + 1
+                differences = np.diff(p.x[a:b])
+                x_step = profile_x_step
+                if len(differences) and not np.allclose(
+                    differences, profile_x_step, rtol=1e-6, atol=0,
+                ):
+                    code = "COORDINATE_GAP_NONUNIFORM"
+                    issues[code] += 1
+                    details.append({"source_file": str(path), "row_number": result.row_number,
+                                    "line_number": result.line_number, "severity": "warning",
+                                    "code": code,
+                                    "description": f"Zone {start // width}: x is nonuniform; "
+                                                   "spatial DSP excluded, coordinates unchanged"})
+                    continue
                 stats = spatial_features(p.y[a:b])
                 zone_id = start // width
                 old = previous.get(zone_id)
@@ -93,6 +128,7 @@ def extract(path, width, *, issue_path=None, change_thresholds=None, cadence_ove
                     "_delta": delta, "_delta_seconds": delta_seconds,
                     **stats, "index_start": a, "index_stop": b,
                     "raw_x_start": float(p.x[a]), "raw_x_end": float(p.x[b - 1]),
+                    "x_step": x_step,
                     "grid": hashlib.sha256(p.x[a:b].tobytes()).hexdigest(),
                 }
         previous = current_points
@@ -171,6 +207,8 @@ def make_samples(records, *, cadence_override=None):
                 past = np.array([[z["median"], z["hot"], z["cold"]] for _, z in h])
                 previous_time = datetime.fromisoformat(h[-1][0]["timestamp"])
                 # Time-of-day features use only the last available profile, in UTC+3.
+                if previous_time.utcoffset() is None:
+                    raise ValueError("UNKNOWN_TIMEZONE_UNSUPPORTED: forecast origin is naive")
                 previous_time = previous_time.astimezone(timezone(timedelta(hours=3)))
                 phase = 2 * math.pi * (previous_time.hour + previous_time.minute / 60) / 24
                 features = np.r_[past[-1] - past[-2], past[-2] - past[-3],
@@ -200,7 +238,8 @@ def make_samples(records, *, cadence_override=None):
                                                     "raw_x_start", "raw_x_end", "grid", "change_threshold_c",
                                                     "change_threshold_from_train", "fraction_hot",
                                                     "fraction_cold", "longest_hot_fraction",
-                                                    "longest_cold_fraction")}})
+                                                    "longest_cold_fraction")},
+                             "x_step": zone.get("x_step")})
                 splits.append(0 if index < train_end else 1 if index < validation_end else 2)
             h.append((record, zone))
         last = record
@@ -221,14 +260,37 @@ def metric(truth, prediction, profile_ids):
             "profiles": len(counts), "zone_observations": len(truth)}
 
 
-def build_alerts(meta, current, predicted, threshold, split, cadence, source):
+def _coordinate_neighbors(left, right):
+    """Index adjacency is insufficient when raw coordinate topology has a gap."""
+    if left["index_stop"] != right["index_start"]:
+        return False
+
+    def step(row):
+        if row.get("x_step") is not None:
+            return row["x_step"]
+        count = row["index_stop"] - row["index_start"]
+        return ((row["raw_x_end"] - row["raw_x_start"]) / (count - 1)
+                if count > 1 else None)
+
+    left_step, right_step = step(left), step(right)
+    return bool(
+        left_step is not None and right_step is not None and left_step > 0 and right_step > 0
+        and np.isclose(left_step, right_step, rtol=1e-6, atol=0)
+        and np.isclose(right["raw_x_start"] - left["raw_x_end"],
+                       left_step, rtol=1e-6, atol=0)
+    )
+
+
+def build_alerts(meta, current, predicted, threshold, split, cadence, source, *, floors_c=None):
     """Connected components in space/time on test only, followed by joint ranking.
 
     Offline event stitching is separate from forecasting. Two distinct timestamps
-    are required; extent is instrumented fiber length, not room size or leak area.
+    are required; extent is a point count, not physical distance or leak area.
     """
     # Two complementary channels: learned innovations and frozen robust level.
-    floors = np.array([.2, .4, .4])
+    floors = np.asarray(RESEARCH_DEFAULT_FLOORS_C if floors_c is None else floors_c, dtype=float)
+    if floors.shape != (3,) or not np.isfinite(floors).all() or np.any(floors <= 0):
+        raise ValueError("floors_c must contain three finite positive research thresholds")
     evidence = {}
     history = {}
     last_index = {}
@@ -253,7 +315,7 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
             level_threshold = np.maximum(floors, 6 * scale)
         # Forecast overshoot at recovery must not turn a return to background
         # into an opposite physical alarm. Require directional level evidence
-        # outside the sensor's worst-case difference uncertainty (0.2 C).
+        # outside the explicit research floor (not a hardware uncertainty bound).
         corroborated = (np.abs(level) > floors) & (innovation * level > 0)
         innovation_ratio = np.where(corroborated, innovation / threshold, 0.0)
         level_ratio = level / level_threshold
@@ -298,7 +360,7 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
             points.sort(key=lambda item: item[0]["zone_id"])
             runs = []
             for point in points:
-                if not runs or point[0]["index_start"] != runs[-1][-1][0]["index_stop"]:
+                if not runs or not _coordinate_neighbors(runs[-1][-1][0], point[0]):
                     runs.append([])
                 runs[-1].append(point)
             components.extend((kind, run) for run in runs)
@@ -323,7 +385,8 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
                      "end": first["timestamp"], "detected_at": None, "observations": 0,
                      "dts_id": first["dts_id"], "channel_id": first["channel_id"],
                      "index_start": first["index_start"], "index_stop": last_point["index_stop"],
-                     "peak_amplitude_c": 0.0, "peak_ratio": 0.0, "peak_extent_m": 0.0,
+                     "peak_amplitude_c": 0.0, "peak_ratio": 0.0, "peak_extent_m": None,
+                     "peak_extent_points": 0,
                      "raw_x_start": first["raw_x_start"], "raw_x_end": last_point["raw_x_end"]}
                 next_id += 1
             e["grid_by_zone"] = {str(p[0]["zone_id"]): p[0]["grid"] for p in run}
@@ -347,8 +410,8 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
             e["raw_x_end"] = max(e["raw_x_end"], last_point["raw_x_end"])
             e["peak_amplitude_c"] = max(e["peak_amplitude_c"], max(p[1] for p in run))
             e["peak_ratio"] = max(e["peak_ratio"], max(p[2] for p in run))
-            e["peak_extent_m"] = max(e["peak_extent_m"],
-                                     sum(p[0]["index_stop"] - p[0]["index_start"] for p in run) * .0025)
+            e["peak_extent_points"] = max(e["peak_extent_points"],
+                                          sum(p[0]["index_stop"] - p[0]["index_start"] for p in run))
             active.append(e)
         for e in previous:
             e["close_reason"] = "candidate_discontinued"
@@ -362,11 +425,11 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
             continue
         e["duration_seconds"] = (datetime.fromisoformat(e["end"]) -
                                  datetime.fromisoformat(e["start"])).total_seconds()
-        e["distance_start_m"] = e["index_start"] * .0025
-        e["distance_stop_m"] = e["index_stop"] * .0025
+        e["distance_start_m"] = None
+        e["distance_stop_m"] = None
         e["priority_score"] = float(np.log1p(e["peak_ratio"]) *
                                     np.log1p(1 + e["duration_seconds"] / cadence) *
-                                    np.sqrt(e["peak_extent_m"] / .0025))
+                                    np.sqrt(e["peak_extent_points"]))
         e["status"] = "temperature_anomaly_candidate"
         e["interpretation"] = ("possible overheating or hot-fluid leak" if e["kind"] in
                                ("heating", "local_peak") else
@@ -375,7 +438,10 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
     return sorted(alerts, key=lambda e: e["priority_score"], reverse=True)
 
 
-def run_file(path, output, width=64, quantile=.995):
+def run_file(path, output, width=64, quantile=.995, *, floors_c=None):
+    floors = np.asarray(RESEARCH_DEFAULT_FLOORS_C if floors_c is None else floors_c, dtype=float)
+    if floors.shape != (3,) or not np.isfinite(floors).all() or np.any(floors <= 0):
+        raise ValueError("floors_c must contain three finite positive research thresholds")
     before = sha256(path)
     output.mkdir(parents=True, exist_ok=True)
     records, issues = extract(path, width, issue_path=output / "issues.jsonl")
@@ -415,10 +481,12 @@ def run_file(path, output, width=64, quantile=.995):
     best_ridge = min(models, key=lambda name: validation_metrics[name]["mae_c"])
     prediction = candidates[selected]
     residuals = np.abs(values[validation] - prediction[validation])
-    thresholds = np.maximum([.2, .4, .4], np.quantile(residuals, quantile, axis=0))
-    alerts = build_alerts(meta, values, prediction, thresholds, split, cadence, path.name)
+    thresholds = np.maximum(floors, np.quantile(residuals, quantile, axis=0))
+    alerts = build_alerts(meta, values, prediction, thresholds, split, cadence, path.name,
+                          floors_c=floors)
     output.mkdir(parents=True, exist_ok=True)
     artifact = {"schema_version": "building-temperature-v2", "semantics": SEMANTICS,
+                "research_threshold_floors_c": floors.tolist(),
                 "source_sha256": before, "source_file": path.name,
                 "selected_model": selected, "best_ridge": best_ridge,
                 "ridge": models[best_ridge].to_dict(), "feature_names": FEATURE_NAMES,
@@ -450,6 +518,7 @@ def run_file(path, output, width=64, quantile=.995):
     if before != after:
         raise RuntimeError(f"Raw input changed: {path}")
     result = {"source_file": path.name, "sha256": before, "raw_unchanged": before == after,
+              "research_threshold_floors_c": floors.tolist(),
               "profiles": len(records), "issues": issues, "selected_model": selected,
               "loaded_profiles": sum(not r.get("invalid", False) for r in records),
               "invalid_records": sum(r.get("invalid", False) for r in records),
@@ -496,9 +565,14 @@ def main(argv=None):
     parser.add_argument("--zone-width", type=int, default=64,
                         help="Tunable spatial support in samples; not a required physical event size")
     parser.add_argument("--quantile", type=float, default=.995)
+    parser.add_argument("--research-threshold-floors-c", type=float, nargs=3,
+                        default=RESEARCH_DEFAULT_FLOORS_C, metavar=("MEDIAN", "HOT", "COLD"),
+                        help="Research floors independent of claimed instrument accuracy")
     args = parser.parse_args(argv)
     if args.zone_width < 2 or not .5 < args.quantile < 1:
         parser.error("Require zone-width >= 2 and .5 < quantile < 1")
+    if not all(np.isfinite(v) and v > 0 for v in args.research_threshold_floors_c):
+        parser.error("Research threshold floors must be finite and positive")
     sources = sorted(args.data_dir.glob("*.csv"))
     if not sources:
         parser.error("No input CSV files")
@@ -516,7 +590,8 @@ def main(argv=None):
     results, alerts = [], []
     for path in sources:
         print(f"Processing {path.name} ...", flush=True)
-        result, events = run_file(path, output / path.stem, args.zone_width, args.quantile)
+        result, events = run_file(path, output / path.stem, args.zone_width, args.quantile,
+                                  floors_c=args.research_threshold_floors_c)
         results.append(result)
         alerts.extend(events)
         print(f"  {result['profiles']} profiles; selected={result['selected_model']}; "
@@ -526,6 +601,7 @@ def main(argv=None):
                "complete" if all(f["accounting_complete"] and not f["invalid_records"] for f in results)
                else "complete_with_data_issues",
                "semantics": SEMANTICS, "files": results,
+               "research_threshold_floors_c": list(args.research_threshold_floors_c),
                "implementation_sha256": {name: sha256(Path(__file__).with_name(name)) for name in
                                          ("solution.py", "forecast.py", "dsp.py", "visualization.py",
                                           "io.py", "validation.py", "inference.py", "features.py",

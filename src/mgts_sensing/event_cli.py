@@ -91,7 +91,9 @@ def main(argv: list[str] | None = None) -> int:
                     close_reasons[event["close_reason"]] += 1
                     counts["events"] += 1
 
-            for result in iter_feature_results(iter_profiles(args.input, naive_utc_offset_hours=3), zone_config):
+            for result in iter_feature_results(
+                iter_profiles(args.input, naive_utc_offset_by_source={"5.csv": 3}), zone_config,
+            ):
                 counts[result.status] += 1
                 counts["feature_rows"] += len(result.rows)
                 for issue in result.issues:
@@ -120,8 +122,13 @@ def main(argv: list[str] | None = None) -> int:
                     "io.py", "validation.py", "time_features.py", "windowing.py",
                 )
             },
-            "signal_unit": "degC", "coordinate_unit": "raw_csv_coordinate",
-            "sample_spacing_m": 0.0025, "accuracy_c": 0.1, "naive_utc_offset_hours": 3,
+            "signal_unit": "degC", "coordinate_unit": None,
+            "sample_spacing_m": None, "accuracy_c": 0.1,
+            "spatial_resolution_m": None,
+            "spatial_resolution_statement": "пространственное разрешение 0,25 см",
+            "semantic_source": "MGTS specialist 2026-10-15 relayed by user; no direct transcript",
+            "accuracy_interpretation": "claimed accuracy; not noise sigma or alarm threshold",
+            "naive_utc_offset_hours": {"5.csv": 3},
             "random_seed": 42, "randomness_used": False,
             "status": "proposal; events are candidates, not confirmed incidents",
         }

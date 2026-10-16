@@ -104,7 +104,8 @@ def test_sustained_step_detected_even_when_predictor_adapts(tmp_path):
     event = next(e for e in alerts if e['kind'] == 'heating')
     assert event['observations'] == 12
     assert event['duration_seconds'] == 660
-    assert event['peak_extent_m'] == pytest.approx(8 * .0025)
+    assert event['peak_extent_m'] is None
+    assert event['peak_extent_points'] == 8
     assert event['detected_at'] > event['start']
     assert event['priority_score'] > 0
     # One isolated innovation cannot be a confirmed event.
@@ -132,7 +133,7 @@ def test_end_to_end_portable_artifacts(tmp_path):
                                         stored["rolling"], stored["zone_id"]), stored["predicted"])
     assert result['event_precision'] is None
     assert result['raw_unchanged']
-    assert model['semantics']['sample_spacing_m'] == .0025
+    assert model['semantics']['sample_spacing_m'] is None
     assert Path(tmp_path / 'out/diagnostics.png').stat().st_size > 1000
     assert path.read_bytes() == before
 

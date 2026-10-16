@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import csv
 import hashlib
-from collections.abc import Iterable, Iterator
+from collections.abc import Iterable, Iterator, Mapping
 from pathlib import Path
 
 from mgts_sensing.validation import (
@@ -17,7 +17,10 @@ from mgts_sensing.validation import (
 )
 
 
-def iter_profiles(paths: Iterable[str | Path], *, naive_utc_offset_hours: int | None = None) -> Iterator[ProfileResult]:
+def iter_profiles(
+    paths: Iterable[str | Path], *, naive_utc_offset_hours: int | None = None,
+    naive_utc_offset_by_source: Mapping[str, int] | None = None,
+) -> Iterator[ProfileResult]:
     """Read files in caller order; track duplicate keys across this entire invocation.
 
     Physical line_number is 1-based (header is line 1); row_number is a 1-based
@@ -25,12 +28,15 @@ def iter_profiles(paths: Iterable[str | Path], *, naive_utc_offset_hours: int | 
     A file/header failure has row_number=0. Unrecoverable CSV syntax stops that
     file with an explicit CSV_READ_ERROR, then reading continues with the next file.
     Only keys and one grid fingerprint per stream are kept, not all profiles.
+    An explicit source-basename mapping overrides the optional caller-selected
+    global offset. Without either option, unknown timezone remains unknown.
     """
     csv.field_size_limit(2**31 - 1)
     seen = {}
     previous_grids = {}
     for source in paths:
         source = Path(source)
+        offset = (naive_utc_offset_by_source or {}).get(source.name, naive_utc_offset_hours)
         try:
             handle = source.open(newline="", encoding="utf-8-sig")
         except OSError as exc:
@@ -80,8 +86,8 @@ def iter_profiles(paths: Iterable[str | Path], *, naive_utc_offset_hours: int | 
                         continue
                     row = dict(zip(header, values))
                     result = parse_profile(row, source, row_number, line_number,
-                                           naive_utc_offset_hours=naive_utc_offset_hours)
-                    key = record_key(row, naive_utc_offset_hours=naive_utc_offset_hours)
+                                           naive_utc_offset_hours=offset)
+                    key = record_key(row, naive_utc_offset_hours=offset)
                     if key is not None:
                         if key in seen:
                             first_file, first_line = seen[key]

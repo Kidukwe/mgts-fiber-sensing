@@ -7,7 +7,15 @@ from pathlib import Path
 import numpy as np
 
 from .forecast import predict_artifact
-from .solution import SEMANTICS, build_alerts, dump, extract, make_samples, sha256
+from .solution import (
+    RESEARCH_DEFAULT_FLOORS_C,
+    SEMANTICS,
+    build_alerts,
+    dump,
+    extract,
+    make_samples,
+    sha256,
+)
 
 
 def main(argv=None):
@@ -39,7 +47,8 @@ def main(argv=None):
     prediction = predict_artifact(artifact, x, persistence, rolling,
                                   [m['zone_id'] for m in meta])
     events = build_alerts(meta, current, prediction, np.array(artifact['thresholds_c']),
-                          np.full(len(meta), 2), cadence, source.name)
+                          np.full(len(meta), 2), cadence, source.name,
+                          floors_c=artifact.get('research_threshold_floors_c', RESEARCH_DEFAULT_FLOORS_C))
     dump(output / 'events.json', events)
     with (output / 'forecasts.jsonl').open('w', encoding='utf-8') as handle:
         for row, actual, predicted in zip(meta, current, prediction):
@@ -49,6 +58,8 @@ def main(argv=None):
             handle.write(json.dumps(item, ensure_ascii=False, allow_nan=False) + '\n')
     unchanged = before == sha256(source)
     report = {'schema_version': 'building-temperature-v2-inference', 'semantics': SEMANTICS,
+              'research_threshold_floors_c': artifact.get('research_threshold_floors_c',
+                                                         list(RESEARCH_DEFAULT_FLOORS_C)),
               'input_sha256': before, 'model_sha256': sha256(args.model), 'raw_unchanged': unchanged,
               'model_fitted': False, 'thresholds_fitted': False,
               'issues': issues, 'profiles': len(records), 'forecast_rows': len(meta),

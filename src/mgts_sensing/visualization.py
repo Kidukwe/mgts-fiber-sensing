@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import html
+from datetime import datetime, timezone
 from itertools import pairwise
 from pathlib import Path
 
@@ -12,6 +13,7 @@ import numpy as np
 def plot_solution(records, meta, values, prediction, split, alerts, output):
     import matplotlib
     matplotlib.use("Agg")
+    import matplotlib.dates as mdates
     import matplotlib.pyplot as plt
 
     max_zone = max((max(r.get("zones", {0: {}}), default=0) for r in records), default=0)
@@ -24,13 +26,26 @@ def plot_solution(records, meta, values, prediction, split, alerts, output):
     fig, axes = plt.subplots(2, 1, figsize=(12, 7), layout="constrained")
     finite = matrix[np.isfinite(matrix)]
     lo, hi = np.quantile(finite, [.02, .98]) if finite.size else (0, 1)
-    image = axes[0].imshow(matrix.T, origin="lower", aspect="auto", cmap="inferno",
-                           vmin=lo, vmax=max(lo + .2, hi),
-                           extent=(0, len(records), 0, max_zone + 1), interpolation="nearest")
+    times, coordinates, temperatures = [], [], []
+    for record in records[::step]:
+        if record.get("invalid"):
+            continue
+        stamp = mdates.date2num(datetime.fromisoformat(record["timestamp"]))
+        for zone in record.get("zones", {}).values():
+            times.append(stamp)
+            coordinates.append((zone["raw_x_start"] + zone["raw_x_end"]) / 2)
+            temperatures.append(zone["median"])
+    image = axes[0].scatter(times, coordinates, c=temperatures, s=4, marker="s",
+                            cmap="inferno", vmin=lo, vmax=max(lo + .2, hi))
     for boundary in (.6, .8):
-        axes[0].axvline(len(records) * boundary, color="cyan", linestyle="--", linewidth=1)
-    axes[0].set(xlabel="Profile index (gaps retain record order)", ylabel="Fiber zone",
-                title="Temperature map / train 60% / validation 20% / test 20%")
+        point = records[min(int(len(records) * boundary), len(records) - 1)]
+        if "timestamp" in point:
+            axes[0].axvline(mdates.date2num(datetime.fromisoformat(point["timestamp"])),
+                            color="cyan", linestyle="--", linewidth=1)
+    axes[0].xaxis.set_major_formatter(mdates.DateFormatter("%m-%d %H:%M", tz=timezone.utc))
+    axes[0].set(xlabel="Measurement time (UTC); no time interpolation",
+                ylabel="Original x (unit unconfirmed)",
+                title=f"Zonal measurements / display profile stride={step}; no gap filling")
     fig.colorbar(image, ax=axes[0], label="Temperature, °C (2–98% display scale)")
     indices = np.flatnonzero(split == 2)
     # Show the zone with most residual variability, explicitly a post-hoc diagnostic.
@@ -93,8 +108,8 @@ def write_solution_report(summary, output):
                     f'доля нагрева/охлаждения {proof["fraction_hot"]:.0%}/{proof["fraction_cold"]:.0%}')
         events.append('<tr data-source="' + esc(e["source_file"]) + '"><td>' +
                       esc(e["source_file"]) + '</td><td>' + kind_names[e["kind"]] + '</td><td>' +
-                      esc(e["start"]) + '</td><td>' + f'{e["distance_start_m"]:.3f}–'
-                      f'{e["distance_stop_m"]:.3f}</td><td>{e["peak_amplitude_c"]:.2f}</td>'
+                      esc(e["start"]) + '</td><td>' + f'{e["raw_x_start"]:.3f}–'
+                      f'{e["raw_x_end"]:.3f}</td><td>{e["peak_amplitude_c"]:.2f}</td>'
                       f'<td>{e["duration_seconds"]:.0f}</td><td>{e["priority_score"]:.1f}</td>'
                       f'<td>{esc(evidence)}</td></tr>')
     content = '''<!doctype html><html lang="ru"><meta charset="utf-8">
@@ -141,28 +156,30 @@ precision и recall не определены. MAE ниже характериз
 <div class="scroll"><table><thead><tr><th>Файл</th><th>Validation temporal MAE</th>
 <th>Validation DSP MAE</th><th>Test temporal MAE</th><th>Test DSP MAE</th></tr></thead>
 <tbody>ABLATION</tbody></table></div>
-<h2>Сигнал и прогноз</h2><p>Пунктир отделяет выборки. Исходная ось x сохранена в JSON;
-метры в событиях рассчитаны по индексам с шагом 0,0025 м. Численный шаг CSV сам по себе
-не доказывает единицу исходной оси. Профили разной длины не дополняются вымышленными значениями.</p>
+<h2>Сигнал и прогноз</h2><p>Пунктир отделяет выборки. Карта показывает медианы зон
+в фактическое время и исходной координате x без интерполяции через разрывы.
+Единицы x не подтверждены: метры и пересчёт по пространственному разрешению не используются.
+Профили разной длины не дополняются вымышленными значениями.</p>
 FIGURES
 <h2>Приоритет проверки</h2><p>Кандидат должен повториться в двух последовательных профилях.
 Используются отклонения от прогноза и от устойчивого прошлого уровня. Ошибка прогноза
-подтверждается направлением фактического отклонения от фона вне погрешности, чтобы возврат
+подтверждается направлением фактического отклонения от фона выше исследовательского порога, чтобы возврат
 к нормальному уровню не превращался в противоположную тревогу.
 Фон замораживается при подозрении. Порог прогноза — 99,5-й перцентиль validation-остатка
-(по умолчанию), фон — 6 MAD. Нижняя граница — 0,2 °C для разности температур
-и 0,4 °C для изменения max−median / median−min, где участвуют четыре измеренных величины.
-Это настройки алгоритма, а не согласованные границы аварии.
+(по умолчанию), фон — 6 MAD. Нижние границы задаются параметрами алгоритма;
+исследовательские defaults 0,2/0,4/0,4 °C не выводятся из точности прибора
+±0,1 °C и не являются ни метрологической гарантией, ни согласованными границами аварии.
 Приоритет = ln(1 + амплитуда/порог) × ln(2 + длительность/шаг времени) × √число точек очага.
 Это рейтинг, не вероятность. Протяжённость относится к волокну, а не площади протечки.
 Объединение соседних зон выполняется после обнаружения; времена start и detected_at разделены.</p>
 <label>Источник <select id="source"><option value="">Все файлы</option>OPTIONS</select></label>
 <div class="scroll"><table id="events"><thead><tr><th>Файл</th><th>Тип</th><th>Начало с UTC offset</th>
-<th>Расстояние, м</th><th>Амплитуда °C</th><th>Длительность, с</th><th>Приоритет</th><th>Доказательства на пике</th></tr></thead>
+<th>Исходный x, единицы неизвестны</th><th>Амплитуда °C</th><th>Длительность, с</th><th>Приоритет</th><th>Доказательства на пике</th></tr></thead>
 <tbody>EVENTS</tbody></table></div><p>Показано до 1000 приоритетных кандидатов на тесте.
 Полный каталог: <a href="solution.json">solution.json</a>.</p>
 <h2>Эксплуатация и границы решения</h2><p>Температура — °C, точность ±0,1 °C,
-заявленный пространственный шаг — 0,25 см, время без offset — фиксированный UTC+3.
+дословный ответ «пространственное разрешение 0,25 см» не задаёт шаг x;
+только naive время 5.csv получает UTC+3 по ответу специалиста от 15.10.
 Значения −300 исключены как конец волокна. Часовой пояс явных timestamp сохранён.
 Окна разрываются при смене канала, сетки участка, отклонённой записи или разрыве
 с интервалом вне 0,5–1,5 типичного шага (типичный шаг оценивается только по train).
