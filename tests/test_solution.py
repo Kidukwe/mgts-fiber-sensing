@@ -215,3 +215,65 @@ def test_gap_is_not_a_longer_forecast_target(tmp_path):
     assert all((__import__('datetime').datetime.fromisoformat(m['timestamp']) -
                 __import__('datetime').datetime.fromisoformat(m['forecast_origin'])).total_seconds()
                == 60 for m in meta)
+
+
+def test_expanding_event_keeps_start_and_confirmation(tmp_path):
+    path = tmp_path / '5.csv'
+    write_csv(path)
+    records, _ = extract(path, 4)
+    _, _, values, _, _, meta, split, cadence = make_samples(records)
+    for i, row in enumerate(meta):
+        if row['profile_index'] == 48 and row['zone_id'] == 1 or row['profile_index'] >= 49:
+            values[i, 0] += 10
+    alerts = build_alerts(meta, values, values.copy(), np.ones(3), split, cadence, '5.csv')
+    heating = [e for e in alerts if e['kind'] == 'heating']
+    assert len(heating) == 1
+    assert heating[0]['start'] == records[48]['timestamp']
+    assert heating[0]['detected_at'] == records[49]['timestamp']
+
+
+def test_replay_uses_available_past_for_first_background(tmp_path):
+    path = tmp_path / '5.csv'
+    write_csv(path)
+    records, _ = extract(path, 4)
+    _, _, values, _, _, meta, split, cadence = make_samples(records)
+    # Five previous profiles are already available to the forecast at first output.
+    # A perfect predictor must not conceal a step in the first replay observations.
+    first = meta[0]['profile_index']
+    for i, row in enumerate(meta):
+        if row['profile_index'] < first + 4:
+            values[i, 0] += 10
+    alerts = build_alerts(meta, values, values.copy(), np.ones(3),
+                          np.full_like(split, 2), cadence, '5.csv')
+    event = next(e for e in alerts if e['kind'] == 'heating')
+    assert event['start'] == records[first]['timestamp']
+    assert event['observations'] == 4
+
+
+def test_delivery_validation_rejects_stale_code_and_changed_weights(tmp_path):
+    from mgts_sensing import artifacts
+    from mgts_sensing.artifacts import verify_output
+    from mgts_sensing.solution import dump, sha256
+
+    path = tmp_path / '5.csv'
+    write_csv(path)
+    output = tmp_path / 'bundle'
+    result, events = run_file(path, output / '5', width=4)
+    manifest = {'status': 'complete', 'schema_version': 'building-temperature-v2',
+                'implementation_sha256': {'artifacts.py': sha256(Path(artifacts.__file__))},
+                'files': [result], 'events': events}
+    dump(output / 'solution.json', manifest)
+    verify_output(output, tmp_path)
+    model_path = output / '5/model.json'
+    model = json.loads(model_path.read_text())
+    if model['selected_model'].startswith('ridge_'):
+        model['ridge']['intercept'][0] += 10
+    else:
+        model['source_sha256'] = 'invalid'
+    dump(model_path, model)
+    with pytest.raises(ValueError, match='predictions|fingerprint'):
+        verify_output(output)
+    manifest['implementation_sha256']['artifacts.py'] = 'outdated'
+    dump(output / 'solution.json', manifest)
+    with pytest.raises(ValueError, match='Code changed since run'):
+        verify_output(output)

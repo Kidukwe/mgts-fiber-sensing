@@ -106,3 +106,8 @@ Notebook итоговой демонстрации: [notebooks/03_building_monit
 Прежние CLI `validate_data.py`, `build_features.py`, `run_baseline.py` сохранены.
 Документы JOTB описывают предыдущие этапы; актуальные решения находятся в
 [docs/decisions.md](docs/decisions.md) и [docs/solution.md](docs/solution.md).
+
+
+Проверка поставки без исходных CSV: `python scripts/verify_solution.py --skip-raw`.
+Сборка архива сначала проверяет актуальность кода и воспроизведение test-прогнозов;
+при изменившемся коде требуется пересоздать результаты.

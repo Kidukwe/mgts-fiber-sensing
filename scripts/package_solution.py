@@ -7,10 +7,8 @@ from zipfile import ZIP_DEFLATED, ZipFile
 def main():
     root = Path(__file__).resolve().parents[1]
     final = root / 'artifacts/final'
-    import json
-    manifest = json.loads((final / 'solution.json').read_text())
-    if manifest.get('status') != 'complete':
-        raise ValueError('Run scripts/run_solution.py first')
+    from mgts_sensing.artifacts import verify_output
+    verify_output(final)
     target = root / 'artifacts/submission.zip'
     paths = [root / name for name in ('README.md', 'pyproject.toml', 'LICENSE', 'CONTRIBUTING.md', '.gitignore',
                                            'notebooks/03_building_monitoring.ipynb')]

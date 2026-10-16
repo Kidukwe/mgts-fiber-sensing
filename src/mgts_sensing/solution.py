@@ -147,6 +147,7 @@ def make_samples(records, *, cadence_override=None):
                        and a["stream"] == b["stream"] and b["seconds"] > a["seconds"]]
     cadence = cadence_override or (float(np.median(positive_deltas)) if positive_deltas else 120.0)
     history, last, block = {}, None, 0
+    sample_last = {}
     x, y, current, persistence, rolling, meta, splits = [], [], [], [], [], [], []
     for index, record in enumerate(records):
         if record.get("invalid"):
@@ -185,7 +186,10 @@ def make_samples(records, *, cadence_override=None):
                 current.append(value)
                 persistence.append(past[-1])
                 rolling.append(np.median(past, axis=0))
-                meta.append({"profile_index": index, "zone_id": zone_id, "block": block,
+                sample_key = (block, zone_id, zone["grid"])
+                seed = past.tolist() if sample_last.get(sample_key) != index - 1 else None
+                sample_last[sample_key] = index
+                meta.append({"baseline_seed": seed, "profile_index": index, "zone_id": zone_id, "block": block,
                              "row_number": record["row"], "line_number": record["line_number"],
                              "quality_flags": record["quality_flags"],
                              "timestamp": record["timestamp"],
@@ -234,6 +238,10 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
         if key in last_index and row["profile_index"] != last_index[key] + 1:
             h.clear()
         last_index[key] = row["profile_index"]
+        # The forecast already has five past profiles at its first usable row.
+        # Use those exact observations to initialize the detector as well.
+        if not h and row.get("baseline_seed") is not None:
+            h.extend(np.asarray(row["baseline_seed"], dtype=float))
         innovation = current[i] - predicted[i]
         level = innovation.copy()
         level_threshold = threshold.copy()
@@ -301,7 +309,8 @@ def build_alerts(meta, current, predicted, threshold, split, cadence, source):
                        and e["last_profile_index"] == profile_index - 1
                        and e["dts_id"] == first["dts_id"]
                        and e["channel_id"] == first["channel_id"]
-                       and e["grid_by_zone"].get(str(first["zone_id"])) == first["grid"]
+                       and any(e["grid_by_zone"].get(str(point[0]["zone_id"])) == point[0]["grid"]
+                               for point in run)
                        and e["index_start"] < last_point["index_stop"]
                        and first["index_start"] < e["index_stop"]
                        and 0 < (time - datetime.fromisoformat(e["end"])).total_seconds() <= cadence * 1.5]
@@ -520,7 +529,7 @@ def main(argv=None):
                "implementation_sha256": {name: sha256(Path(__file__).with_name(name)) for name in
                                          ("solution.py", "forecast.py", "dsp.py", "visualization.py",
                                           "io.py", "validation.py", "inference.py", "features.py",
-                                          "preprocessing.py", "dsp_features.py")},
+                                          "preprocessing.py", "dsp_features.py", "artifacts.py")},
                "environment": {"numpy": np.__version__, "python": platform.python_version()},
                "alert_policy": "test-only; residual quantile on validation; two consecutive profiles; "
                                "joint amplitude-duration-extent priority, not calibrated probability",
