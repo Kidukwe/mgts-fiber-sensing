@@ -1,3 +1,7 @@
+> Документ первоначального зонального baseline. Итоговое обучаемое решение:
+> [solution.md](solution.md). Единицы теперь подтверждены: °C; naive time — UTC+3.
+> Сохранены прежние названия quality flags для совместимости.
+
 # Детектор температурных событий, baseline и интеграция
 
 Исследовательский детектор кандидатов `temperature-events-v1-proposal` потребляет
@@ -14,7 +18,8 @@ python scripts/run_baseline.py --input data/sample/temperature_events.csv \
   --output-dir artifacts/temperature-events-demo --index-stop 6 --zone-width 3
 ```
 
-`demo/demo.py` принимает те же аргументы и вызывает тот же pipeline.
+`demo/demo.py` в текущей версии запускает полный v2 pipeline; для старого
+зонального baseline используйте scripts/run_baseline.py.
 Образец полностью искусственный: 14 профилей, 2 зоны, шаг 120 секунд. После
 5 стабильных профилей идут 3 профиля нагрева зоны 0 и охлаждения зоны 1,
 восстановление, затем по 2 профиля локального пика/провала и восстановления.

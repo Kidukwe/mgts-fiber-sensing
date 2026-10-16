@@ -1,9 +1,5 @@
-"""Run the same reproducible event pipeline used by the baseline CLI.
+"""Run the complete building-monitoring demo, including training and HTML report."""
+from mgts_sensing.solution import main
 
-See docs/temperature_events.md for the synthetic sample command.
-"""
-
-from mgts_sensing.event_cli import main
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     raise SystemExit(main())

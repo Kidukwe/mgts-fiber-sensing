@@ -91,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
                     close_reasons[event["close_reason"]] += 1
                     counts["events"] += 1
 
-            for result in iter_feature_results(iter_profiles(args.input), zone_config):
+            for result in iter_feature_results(iter_profiles(args.input, naive_utc_offset_hours=3), zone_config):
                 counts[result.status] += 1
                 counts["feature_rows"] += len(result.rows)
                 for issue in result.issues:
@@ -120,7 +120,8 @@ def main(argv: list[str] | None = None) -> int:
                     "io.py", "validation.py", "time_features.py", "windowing.py",
                 )
             },
-            "signal_unit": None, "coordinate_unit": None,
+            "signal_unit": "degC", "coordinate_unit": "raw_csv_coordinate",
+            "sample_spacing_m": 0.0025, "accuracy_c": 0.1, "naive_utc_offset_hours": 3,
             "random_seed": 42, "randomness_used": False,
             "status": "proposal; events are candidates, not confirmed incidents",
         }
@@ -137,5 +138,5 @@ def main(argv: list[str] | None = None) -> int:
         for name in OUTPUT_NAMES:
             (staging / name).replace(output / name)
     print(f"Profiles: {counts['aggregated']}; candidate events: {counts['events']}; output: {output}")
-    print("Proposal: unknown signal units; event precision/recall unavailable without labels.")
+    print("Temperature in degC; event precision/recall unavailable without labels.")
     return int(bool(counts["rejected"] or counts["excluded"] or counts["file_error"] or not unchanged))

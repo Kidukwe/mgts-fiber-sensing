@@ -28,6 +28,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data-dir", type=Path, default=Path("MGTS_data"))
     parser.add_argument("--report-dir", type=Path, default=Path("reports/ingestion"))
+    parser.add_argument("--naive-utc-offset-hours", type=int, default=None,
+                        help="Assign a confirmed fixed offset; generic API otherwise preserves naive time")
     args = parser.parse_args()
     paths = sorted(args.data_dir.glob("*.csv"))
     if not paths:
@@ -50,7 +52,7 @@ def main() -> int:
     }
     report_dir.mkdir(parents=True, exist_ok=True)
     with (report_dir / "issues.jsonl").open("w", encoding="utf-8") as report:
-        for result in iter_profiles(paths):
+        for result in iter_profiles(paths, naive_utc_offset_hours=args.naive_utc_offset_hours):
             item = stats[result.source_file]
             if result.row_number == 0:
                 item["file_errors"] += 1
@@ -111,7 +113,8 @@ def main() -> int:
 
     summary = {
         "configuration": {"data_dir": str(args.data_dir), "gap_factor": 1.5,
-                          "sentinel": -300, "duplicate_scope": "all files in caller order"},
+                          "sentinel": -300, "naive_utc_offset_hours": args.naive_utc_offset_hours,
+                          "duplicate_scope": "all files in caller order"},
         "environment": {"python": platform.python_version(), "numpy": np.__version__},
         "files": summary_rows,
         "records": sum(item["records"] for item in summary_rows),

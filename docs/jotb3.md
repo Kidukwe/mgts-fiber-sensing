@@ -1,3 +1,6 @@
+> Исторический документ предыдущего этапа. Актуальные единицы, постановка и решение:
+> [decisions.md](decisions.md), [solution.md](solution.md).
+
 # JOTB-3 — временные признаки и baseline
 
 Источник: https://yozhka.lukit.ru/workspace/JOTB/project/MNTB/board/JOTB-3

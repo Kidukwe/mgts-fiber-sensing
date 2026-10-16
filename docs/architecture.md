@@ -1,4 +1,18 @@
-# Architecture
+# Итоговая архитектура
+
+Основной маршрут: `scripts/run_solution.py` → `solution.main`.
+`io/validation` читают неизменяемые CSV, `dsp.spatial_features` описывает
+пространственные участки, `solution.make_samples` формирует причинные окна
+и хронологические выборки. `forecast.RidgeForecaster` обучает и сохраняет
+регрессию; `solution.build_alerts` объединяет прогнозные и фоновые отклонения
+в кандидаты. `visualization` строит фигуры и локальный HTML.
+
+Переносимый артефакт проверяется через `scripts/verify_solution.py` и
+`forecast.predict_artifact`; комплект собирает `scripts/package_solution.py`.
+Текущий контракт — [solution.md](solution.md).
+
+## Предыдущая архитектура и совместимость
+
 
 The project follows a small batch pipeline:
 

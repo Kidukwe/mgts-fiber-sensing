@@ -17,7 +17,7 @@ from mgts_sensing.validation import (
 )
 
 
-def iter_profiles(paths: Iterable[str | Path]) -> Iterator[ProfileResult]:
+def iter_profiles(paths: Iterable[str | Path], *, naive_utc_offset_hours: int | None = None) -> Iterator[ProfileResult]:
     """Read files in caller order; track duplicate keys across this entire invocation.
 
     Physical line_number is 1-based (header is line 1); row_number is a 1-based
@@ -79,8 +79,9 @@ def iter_profiles(paths: Iterable[str | Path]) -> Iterator[ProfileResult]:
                         yield ProfileResult(source, row_number, line_number, None, (issue,))
                         continue
                     row = dict(zip(header, values))
-                    result = parse_profile(row, source, row_number, line_number)
-                    key = record_key(row)
+                    result = parse_profile(row, source, row_number, line_number,
+                                           naive_utc_offset_hours=naive_utc_offset_hours)
+                    key = record_key(row, naive_utc_offset_hours=naive_utc_offset_hours)
                     if key is not None:
                         if key in seen:
                             first_file, first_line = seen[key]

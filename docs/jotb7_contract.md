@@ -1,3 +1,6 @@
+> Исторический документ предыдущего этапа. Актуальные единицы, постановка и решение:
+> [decisions.md](decisions.md), [solution.md](solution.md).
+
 # JOTB-7: proposal API и схема признаков
 
 Статус: **proposal**, schema version `jotb7-zones-v1-proposal`.

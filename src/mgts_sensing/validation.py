@@ -6,7 +6,7 @@ import json
 import re
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Literal
 
@@ -68,7 +68,7 @@ class ProfileResult:
         return self.profile is not None
 
 
-def parse_timestamp(raw: str) -> tuple[datetime, str | None, bool]:
+def parse_timestamp(raw: str, *, naive_utc_offset_hours: int | None = None) -> tuple[datetime, str | None, bool]:
     """Preserve naive time; support PostgreSQL short offsets and ISO Z on Python 3.10."""
     value = raw.strip()
     if not _TIME_PREFIX.match(value):
@@ -83,7 +83,10 @@ def parse_timestamp(raw: str) -> tuple[datetime, str | None, bool]:
     normalized = _SHORT_OFFSET.sub(r"\1:00", value)
     if normalized.endswith("Z"):
         normalized = normalized[:-1] + "+00:00"
-    return datetime.fromisoformat(normalized), timezone_raw, normalized != raw
+    timestamp = datetime.fromisoformat(normalized)
+    if timestamp.tzinfo is None and naive_utc_offset_hours is not None:
+        timestamp = timestamp.replace(tzinfo=timezone(timedelta(hours=naive_utc_offset_hours)))
+    return timestamp, timezone_raw, normalized != raw
 
 
 def profile_key(profile: Profile) -> tuple[str, str, bool, datetime]:
@@ -94,12 +97,12 @@ def profile_key(profile: Profile) -> tuple[str, str, bool, datetime]:
     return profile.dts_id, profile.channel_id, profile.timezone_known, timestamp
 
 
-def record_key(row: Mapping[str, str | None]) -> tuple[str, str, bool, datetime] | None:
+def record_key(row: Mapping[str, str | None], *, naive_utc_offset_hours: int | None = None) -> tuple[str, str, bool, datetime] | None:
     """Keys can still be checked for a row whose points failed to parse."""
     if not all(str(row.get(name) or "").strip() for name in REQUIRED_COLUMNS[:3]):
         return None
     try:
-        timestamp, _, _ = parse_timestamp(row["timestamp"])
+        timestamp, _, _ = parse_timestamp(row["timestamp"], naive_utc_offset_hours=naive_utc_offset_hours)
     except ValueError:
         return None
     known = timestamp.utcoffset() is not None
@@ -113,6 +116,8 @@ def parse_profile(
     source_file: str | Path,
     row_number: int,
     line_number: int,
+    *,
+    naive_utc_offset_hours: int | None = None,
 ) -> ProfileResult:
     """Structural errors reject the entire row. Quality warnings preserve all values."""
     source_file = Path(source_file)
@@ -130,7 +135,9 @@ def parse_profile(
     normalized = False
     if "timestamp" not in missing:
         try:
-            timestamp, timezone_raw, normalized = parse_timestamp(row["timestamp"])
+            timestamp, timezone_raw, normalized = parse_timestamp(row["timestamp"], naive_utc_offset_hours=naive_utc_offset_hours)
+            if timezone_raw is None and naive_utc_offset_hours is not None:
+                add("warning", "TIMEZONE_ASSIGNED", "Naive time assigned confirmed fixed UTC offset")
             if timestamp.tzinfo is None:
                 add("warning", "UNKNOWN_TIMEZONE", "Timestamp has no timezone; none was assigned")
         except ValueError:
@@ -193,7 +200,7 @@ def parse_profile(
         if np.any(x[1:] <= x[:-1]):
             add("warning", "NONINCREASING_X", "x is not strictly increasing; original order kept")
         if mask.any():
-            add("warning", "SUSPECT_SENTINEL", f"{int(mask.sum())} y values equal -300; meaning unknown")
+            add("warning", "SUSPECT_SENTINEL", f"{int(mask.sum())} y values equal -300; confirmed fiber end, excluded from analytics")
 
     if any(issue.severity == "error" for issue in issues):
         return ProfileResult(source_file, row_number, line_number, None, tuple(issues))

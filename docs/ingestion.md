@@ -1,3 +1,6 @@
+> Исторический документ предыдущего этапа. Актуальные единицы, постановка и решение:
+> [decisions.md](decisions.md), [solution.md](solution.md).
+
 # JOTB-2: read-only ingestion
 
 Загрузчик принимает CSV с `dts_id`, `channel_id`, `timestamp`, `points`.

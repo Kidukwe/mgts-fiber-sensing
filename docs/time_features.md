@@ -1,3 +1,6 @@
+> Исторический документ предыдущего этапа. Актуальные единицы, постановка и решение:
+> [decisions.md](decisions.md), [solution.md](solution.md).
+
 # Причинные временные признаки JOTB-3
 
 `iter_windows` в `mgts_sensing.windowing` формирует историю из H профилей,

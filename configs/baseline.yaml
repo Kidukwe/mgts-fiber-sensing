@@ -6,27 +6,41 @@ data:
   raw_dir: MGTS_data
   sample_dir: data/sample
   file_pattern: "*.csv"
-  required_columns:
-    - dts_id
-    - channel_id
-    - timestamp
-    - points
+  required_columns: [dts_id, channel_id, timestamp, points]
 
-# HUMAN DECISION: do not fill these fields without confirming data semantics.
+# Reference specification; the CLI records its actual resolved config in model.json.
 semantics:
-  naive_timestamp_timezone: null
-  missing_value_sentinels: []
-  coordinate_unit: null
-  signal_unit: null
+  naive_timestamp_timezone: "UTC+03:00"
+  missing_value_sentinels: [-300]
+  sentinel_meaning: end_of_fiber
+  signal_unit: degC
+  accuracy_c: 0.1
+  sample_spacing_m: 0.0025
+  coordinate_unit: raw_csv_coordinate
+  distance_policy: index_times_sample_spacing
 
-# HUMAN DECISION: target, split and metric must be approved before modeling.
 experiment:
-  target: null
-  split_strategy: null
-  metric: null
-  baseline_model: null
+  target: next_profile_zone_median_and_hot_cold_excursion_changes
+  split_strategy: chronological_per_file_60_20_20_by_target_profile
+  metric: profile_weighted_median_temperature_MAE_C
+  secondary_metric: RMSE_C
+  learned_model: train_standardized_multioutput_ridge
+  alpha_candidates: [0.1, 10, 1000]
+  comparison_models: [persistence, rolling_median, train_median]
+  selection: validation_MAE
+  # Engineering default; neither 40 nor any other width is mandated.
+  zone_width_points: 64
+  history_profiles: 5
+  minimum_cadence_factor: 0.5
+  maximum_cadence_factor: 1.5
+  forecast_residual_quantile: 0.995
+  uncertainty_difference_floor_c: 0.2
+  uncertainty_excursion_change_floor_c: 0.4
+  point_change_threshold: train_per_zone_absolute_delta_quantile_0.95
+  feature_ablation: [temporal, spatial_dsp]
+  feature_count: 24
+  event_confirmation_profiles: 2
 
 outputs:
-  audit_report: reports/data_audit.md
-  figures_dir: reports/figures
-  models_dir: models
+  report: artifacts/final/report.html
+  manifest: artifacts/final/solution.json
