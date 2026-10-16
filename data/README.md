@@ -8,5 +8,6 @@
   must not overwrite raw files.
 
 The current CSV rows contain sensor id, channel, timestamp and a JSON-encoded `points`
-array. Some files additionally contain `points_size`. Units, sensor modality and special
-values must be documented before preprocessing is implemented.
+array. Some files additionally contain `points_size`. Confirmed temperature units, end-of-fiber values and UTC+3 policy are documented
+in docs/decisions.md and docs/solution.md. Raw x units remain separate from
+index-based physical distances.

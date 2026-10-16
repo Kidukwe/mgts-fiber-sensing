@@ -1,9 +1,5 @@
-"""Minimal demo entry point; implemented after the first validated baseline."""
+"""Run the complete building-monitoring demo, including training and HTML report."""
+from mgts_sensing.solution import main
 
-
-def main() -> None:
-    raise SystemExit("Demo is not implemented yet")
-
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    raise SystemExit(main())

@@ -26,6 +26,8 @@ data/interim/
 data/processed/
 models/
 artifacts/
+reports/ingestion/
+reports/ingestion-v2/
 
 # Local secrets and environment
 .env
